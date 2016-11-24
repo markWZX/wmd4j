@@ -3,10 +3,12 @@ package com.mark.wmd4j;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 
 import org.nd4j.linalg.api.ndarray.INDArray;
 
+@Data
 @AllArgsConstructor
 public class FrequencyVector {
 

@@ -16,8 +16,11 @@ import lombok.NonNull;
 import org.deeplearning4j.models.embeddings.wordvectors.WordVectors;
 import org.deeplearning4j.text.tokenization.tokenizer.TokenPreProcess;
 import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.factory.Nd4j;
 
 import com.google.common.base.Preconditions;
+import com.mark.util.nd4j.INDArrayUtil;
 import com.mark.wmd4j.emd.EarthMovers;
 
 /**
@@ -77,7 +80,7 @@ public class WordMovers {
 	 * @return
 	 */
 	public double distance(String a, String b, Map<String, Double> sepcialWords){
-		return distance(a, b, sepcialWords);
+		return distance(preProcess(a).split(" "), preProcess(b).split(" "),sepcialWords);
 	}
 
 	private String preProcess(String s){
@@ -97,7 +100,6 @@ public class WordMovers {
 	 */
 	private double distance(String[] tokensA, String[] tokensB, Map<String, Double> sepcial) {
 		//Preconditions.checkArgument(tokensA.length < 1 || tokensB.length < 1,"tokens length should > 0");
-
 		Map<String, FrequencyVector> mapA = bagOfVectors(tokensA);
 		Map<String, FrequencyVector> mapB = bagOfVectors(tokensB);
 		
@@ -136,7 +138,8 @@ public class WordMovers {
 		double[] freqA = wordFrequencies(vocab, mapA, sepcial);
 		double[] freqB = wordFrequencies(vocab, mapB, sepcial);
 
-		return earthMovers.distance(freqA, freqB, matrix, 0);
+		double dis = earthMovers.distance(freqA, freqB, matrix, 0);
+		return dis;
 	}
 
 	/**
@@ -147,7 +150,7 @@ public class WordMovers {
 	private Map<String, FrequencyVector> bagOfVectors(String[] tokens) {
 
 		Map<String, FrequencyVector> map = new LinkedHashMap<>(tokens.length);
-		Arrays.stream(tokens).parallel()
+		Arrays.stream(tokens)
 				.filter(x -> wordVectors.hasWord(x))
 				.forEach(
 						x -> map.merge(
@@ -205,15 +208,15 @@ public class WordMovers {
 	
 	/**
 	 * the matrix length = [sents.size()]*[sents.size()]
-	 * 
+	 * contains specialWords
 	 * @param sents
 	 * @return
 	 */
-	public double[][] getWMDS(List<String> sents) {
+	public double[][] getWMDS(List<String> sents,Map<String, Double> sepcialWords) {
 		double[][] wmd = new double[sents.size()][sents.size()];
 		for (int i = 0; i < sents.size()-1; i++) {
 			for (int j = i+1; j < sents.size(); j++) {
-				wmd[i][j] = distance(sents.get(i), sents.get(j));
+				wmd[i][j] = distance(sents.get(i), sents.get(j),sepcialWords);
 			}
 		}
 		for (int i = 0; i < wmd.length; i++) {
@@ -231,12 +234,12 @@ public class WordMovers {
 	
 	/**
 	 * the matrix length = [sents.size()]*[sents.size()]
-	 * 未归一化
+	 * contains specialWords 未归一化
 	 * @param sents
 	 * @return
 	 */
-	public double[][] getSim(List<String> sents) {
-		double[][] wmd = getWMDS(sents);
+	public double[][] getSim(List<String> sents,Map<String, Double> sepcialWords) {
+		double[][] wmd = getWMDS(sents,sepcialWords);
 		for (int i = 0; i < wmd.length; i++) {
 			for (int j = 0; j < wmd[0].length; j++) {
 				wmd[i][j] = 1 / (1 + wmd[i][j]);
@@ -247,25 +250,129 @@ public class WordMovers {
 	
 	/**
 	 * the matrix length = [sents.size()]*[sents.size()]
-	 * 归一化
+	 * contains specialWords 归一化
 	 * @param sents
 	 * @return
 	 */
-	public double[][] getNormSim(List<String> sents) {
-		double[][] sim = getSim(sents);
+	public double[][] getNormSim(List<String> sents,Map<String, Double> sepcialWords) {
+		double[][] sim = getSim(sents,sepcialWords);
 		double max = 0d;
 		for (int i = 0; i < sim.length; i++) {
 			for (int j = i+1; j < sim[0].length; j++) {
-				max = max > sim[i][j] ? max : sim[i][j];	
+				if (i!=j) {
+					max = max > sim[i][j] ? max : sim[i][j];					
+				}
 			}
 		}
 		for (int i = 0; i < sim.length; i++) {
 			for (int j = 0; j < sim[0].length; j++) {
-				sim[i][j] /= max;
+				if (i!=j) {
+					sim[i][j] /= max;					
+				}
 			}
 		}
 		return sim;
 	}
 	
+	
+	/**
+	 * 3种不带特殊词的wmd用法
+	 * 
+	 */	
+	public double[][] getWMDS(List<String> sents) {	
+		return getWMDS(sents, null);
+	}
+	
+	public double[][] getSim(List<String> sents) {
+		return getSim(sents, null);
+	}
 
+	public double[][] getNormSim(List<String> sents) {
+		return getNormSim(sents, null);
+	}
+
+	
+	/**
+	 * 余弦相似度
+	 * @param sents
+	 * @return
+	 */
+	public double[][] getCosSim(List<String> sents) {
+		double[][] wmd = new double[sents.size()][sents.size()];
+		for (int i = 0; i < sents.size()-1; i++) {
+			for (int j = i+1; j < sents.size(); j++) {
+				wmd[i][j] = cosSim(sents.get(i), sents.get(j));
+			}
+		}
+		for (int i = 0; i < wmd.length; i++) {
+			for (int j = 0; j <= i ; j++) {
+				if (i == j) {
+					wmd[i][j] = 1;
+				}else {
+					wmd[i][j] = wmd[j][i];
+				}
+			}
+		}
+		return wmd;
+	}
+	
+	/**
+	 * 普通cos相似度
+	 * @param a
+	 * @param b
+	 * @return
+	 */
+	public double cosSim(String a, String b) {
+		return cosSim(preProcess(a).split(" "), preProcess(b).split(" "),null);
+	}
+	
+	
+	/**
+	 * 带有特殊词汇及其权重的余弦相似度
+	 * @param String a
+	 * @param String b
+	 * @param sepcialWords 
+	 * @return
+	 */
+	public double cosSim(String a, String b, Map<String, Double> sepcialWords){
+		return cosSim(preProcess(a).split(" "), preProcess(b).split(" "),sepcialWords);
+	}
+	
+	/**
+	 * 计算余弦相似度
+	 * @param tokensA
+	 * @param tokensB
+	 * @param sepcial
+	 * @return
+	 */
+	private double cosSim(String[] tokensA, String[] tokensB, Map<String, Double> sepcial) {
+		
+		INDArray a = totalINDArray(tokensA,sepcial);
+		INDArray b = totalINDArray(tokensB,sepcial);
+
+		return INDArrayUtil.getCosSimilarity(a, b);
+	}
+	
+	/**
+	 * 合并 word embedding
+	 * @param tokens
+	 * @return
+	 */
+	private INDArray totalINDArray(String[] tokens,Map<String, Double> sepcial) {
+		INDArray total = Nd4j.zeros(wordVectors.lookupTable().layerSize());
+		for (String token : tokens) {
+			if (sepcial != null) {
+				if (wordVectors.hasWord(token)) {
+					total = total.add(wordVectors.getWordVectorMatrix(token)
+							.mul(sepcial.get(token) == null ? 1 : sepcial.get(token)));
+				}
+			}else {
+				if (wordVectors.hasWord(token)) {
+					total = total.add(wordVectors.getWordVectorMatrix(token));
+				}
+			}
+			
+		}
+		return total;
+	}
 }

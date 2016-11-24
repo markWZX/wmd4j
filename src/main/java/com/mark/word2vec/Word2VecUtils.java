@@ -16,14 +16,14 @@ import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 
 /**
  * <p>
- * Title: Word2Vec
+ * Title: Word2VecUtils
  * </p>
  * <p>
- * Description:
+ * Description: Word2Vec's utils
  * </p>
  * 
  * @author Mark
- * @Date 下午3:31:56 2016年10月19日
+ * @Date 下午3:31:56 2016-10-19
  */
 @Slf4j
 public class Word2VecUtils {
@@ -98,7 +98,7 @@ public class Word2VecUtils {
 	 * @param file
 	 * @return
 	 */
-	public static WordVectors newloadWordVector(File file) {
+	public static WordVectors loadWordVector(File file) {
 		WordVectors wordVectors = null;
 		try {
 			log.info("loading common dl4j's wordvectors");
@@ -114,7 +114,7 @@ public class Word2VecUtils {
 	 * @param file
 	 * @return
 	 */
-	public static WordVectors loadWordVector(File file) {
+	public static WordVectors loadTxtWordVector(File file) {
 		WordVectors wordVectors = null;
 		try {
 			log.info("loading common dl4j's wordvectors");

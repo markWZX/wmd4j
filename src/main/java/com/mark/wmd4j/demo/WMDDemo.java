@@ -14,7 +14,7 @@ import com.mark.word2vec.Word2VecUtils;
  * <p>Title: WMDDemo</p> 
  * <p>Description: </p>
  * @author Mark
- * @Date 下午2:40:55 2016年11月2日
+ * @Date 2016-11-2
  */
 public class WMDDemo {
 	
