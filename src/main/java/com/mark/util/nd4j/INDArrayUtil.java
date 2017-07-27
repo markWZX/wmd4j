@@ -1,13 +1,15 @@
 package com.mark.util.nd4j;
 
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.ops.transforms.Transforms;
 
 /**
  * 
  * <p>Title: INDArrayUtil</p> 
- * <p>Description:  only for one dimension,INDArray's compute
+ * <p>Description:  only for one dimension,INDArray的各种计算
  * @author Mark
- * @Date 2016-7-1
+ * @Date 下午2:52:03 2016年7月1日
  */
 public class INDArrayUtil {
 	
@@ -27,13 +29,7 @@ public class INDArrayUtil {
      * @return
      */
     public static double transvection(INDArray a, INDArray b){
-
-    	double result = 0;
-    	for (int i = 0; i < a.length(); i++) {
-			result+=a.getDouble(i)*b.getDouble(i);
-		}
-
-    	return result;
+    	return Nd4j.getBlasWrapper().dot(a, b);
     }
     
     /**
@@ -54,14 +50,7 @@ public class INDArrayUtil {
      * @return
      */
     public static double getCosSimilarity(INDArray a, INDArray b){
-    	
-    	double result = 0;  	
-    	if (getINDArrayNorm(a) != 0 && getINDArrayNorm(b) != 0) {
-    		
-			result =  transvection(a, b)/(getINDArrayNorm(a)*getINDArrayNorm(b));
-		} 	
-    	return result;
-    	
+    	return Transforms.cosineSim(a, b);    	
     }
-
+    
 }

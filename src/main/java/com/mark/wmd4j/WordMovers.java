@@ -5,23 +5,19 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import lombok.Builder;
-import lombok.Data;
-import lombok.NonNull;
 
 import org.deeplearning4j.models.embeddings.wordvectors.WordVectors;
 import org.deeplearning4j.text.tokenization.tokenizer.TokenPreProcess;
 import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
-import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.factory.Nd4j;
 
 import com.google.common.base.Preconditions;
-import com.mark.util.nd4j.INDArrayUtil;
 import com.mark.wmd4j.emd.EarthMovers;
+
+import lombok.Builder;
+import lombok.Data;
+import lombok.NonNull;
 
 /**
  * Created by Majer on 21.9.2016.
@@ -33,6 +29,7 @@ import com.mark.wmd4j.emd.EarthMovers;
 public class WordMovers {
 
 	private static final double DEFAULT_STOPWORD_WEIGHT = 0.5;
+	
 	/**
 	 *  词向量对象
 	 */
@@ -48,7 +45,12 @@ public class WordMovers {
 	/**
 	 * 停用词
 	 */
-	private Set<String> stopwords;
+	private List<String> stopwords;
+	
+	/**
+	 * 去除停用词
+	 */
+	private boolean removeStopWords;
 	
 	/**
 	 * 停用词权重
@@ -105,7 +107,7 @@ public class WordMovers {
 		
 		if (mapA.size() == 0 || mapB.size() == 0) {
 			return Double.MAX_VALUE;
-		}
+		}		
 
 		/*Preconditions.checkState(mapA.size() == 0 || mapB.size() == 0, 
 				"Can't find any word vectors for given input text ..."
@@ -127,7 +129,7 @@ public class WordMovers {
 					// if tokenA and tokenB are stopwords, calculate distance according to stopword weight
 					// the distance is cut half, just dicrease the effect of these words.
 					if (stopwords != null && tokenA.length() != 1 && tokenB.length() != 1){
-						distance *= stopwords.contains(tokenA) && stopwords.contains(tokenB) ? 1 : stopwordWeight;
+						distance *= stopwords.contains(tokenA) && stopwords.contains(tokenB) ? stopwordWeight : 1;
 					}
 					matrix[i][j] = distance;
 					matrix[j][i] = distance;
@@ -148,10 +150,12 @@ public class WordMovers {
 	 * @return
 	 */
 	private Map<String, FrequencyVector> bagOfVectors(String[] tokens) {
-
+		
 		Map<String, FrequencyVector> map = new LinkedHashMap<>(tokens.length);
 		Arrays.stream(tokens)
-				.filter(x -> wordVectors.hasWord(x))
+				.filter(x -> wordVectors.hasWord(x) && 
+						!(removeStopWords && 
+								(stopwords!=null && stopwords.contains(x))))				
 				.forEach(
 						x -> map.merge(
 								x,
@@ -183,7 +187,7 @@ public class WordMovers {
 			Map<String, FrequencyVector> map){
 		return vocab.stream().mapToDouble(x -> {
 			if (map.containsKey(x)) {
-				return (double) map.get(x).getFrequency() / map.size();
+				return (double) map.get(x).getFrequency() / map.size() ;
 			}
 			return 0d;
 		}).toArray();
@@ -291,88 +295,4 @@ public class WordMovers {
 		return getNormSim(sents, null);
 	}
 
-	
-	/**
-	 * 余弦相似度
-	 * @param sents
-	 * @return
-	 */
-	public double[][] getCosSim(List<String> sents) {
-		double[][] wmd = new double[sents.size()][sents.size()];
-		for (int i = 0; i < sents.size()-1; i++) {
-			for (int j = i+1; j < sents.size(); j++) {
-				wmd[i][j] = cosSim(sents.get(i), sents.get(j));
-			}
-		}
-		for (int i = 0; i < wmd.length; i++) {
-			for (int j = 0; j <= i ; j++) {
-				if (i == j) {
-					wmd[i][j] = 1;
-				}else {
-					wmd[i][j] = wmd[j][i];
-				}
-			}
-		}
-		return wmd;
-	}
-	
-	/**
-	 * 普通cos相似度
-	 * @param a
-	 * @param b
-	 * @return
-	 */
-	public double cosSim(String a, String b) {
-		return cosSim(preProcess(a).split(" "), preProcess(b).split(" "),null);
-	}
-	
-	
-	/**
-	 * 带有特殊词汇及其权重的余弦相似度
-	 * @param String a
-	 * @param String b
-	 * @param sepcialWords 
-	 * @return
-	 */
-	public double cosSim(String a, String b, Map<String, Double> sepcialWords){
-		return cosSim(preProcess(a).split(" "), preProcess(b).split(" "),sepcialWords);
-	}
-	
-	/**
-	 * 计算余弦相似度
-	 * @param tokensA
-	 * @param tokensB
-	 * @param sepcial
-	 * @return
-	 */
-	private double cosSim(String[] tokensA, String[] tokensB, Map<String, Double> sepcial) {
-		
-		INDArray a = totalINDArray(tokensA,sepcial);
-		INDArray b = totalINDArray(tokensB,sepcial);
-
-		return INDArrayUtil.getCosSimilarity(a, b);
-	}
-	
-	/**
-	 * 合并 word embedding
-	 * @param tokens
-	 * @return
-	 */
-	private INDArray totalINDArray(String[] tokens,Map<String, Double> sepcial) {
-		INDArray total = Nd4j.zeros(wordVectors.lookupTable().layerSize());
-		for (String token : tokens) {
-			if (sepcial != null) {
-				if (wordVectors.hasWord(token)) {
-					total = total.add(wordVectors.getWordVectorMatrix(token)
-							.mul(sepcial.get(token) == null ? 1 : sepcial.get(token)));
-				}
-			}else {
-				if (wordVectors.hasWord(token)) {
-					total = total.add(wordVectors.getWordVectorMatrix(token));
-				}
-			}
-			
-		}
-		return total;
-	}
 }

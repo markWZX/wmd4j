@@ -3,8 +3,6 @@ package com.mark.word2vec;
 import java.io.File;
 import java.io.IOException;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
 import org.deeplearning4j.models.embeddings.wordvectors.WordVectors;
 import org.deeplearning4j.models.word2vec.Word2Vec;
@@ -13,6 +11,8 @@ import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
 import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFactory;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * <p>
@@ -54,7 +54,7 @@ public class Word2VecUtils {
 		vec.fit();
 	
 		log.info("Word2Vec model fitting finished....\n Start writing into file....");
-		WordVectorSerializer.writeWord2Vec(vec, output);
+		WordVectorSerializer.writeWord2VecModel(vec, output);
 		log.info("Write into file finished");
 	}
 	
@@ -70,7 +70,7 @@ public class Word2VecUtils {
 
 		log.info("Load current Word2Vec model....");
 		
-		Word2Vec word2Vec = WordVectorSerializer.readWord2Vec(sourceWord2vec);
+		Word2Vec word2Vec = WordVectorSerializer.readWord2VecModel(sourceWord2vec);		
         /*
             PLEASE NOTE: after model is restored, it's still required to set SentenceIterator and TokenizerFactory, if you're going to train this model
          */
@@ -87,7 +87,7 @@ public class Word2VecUtils {
         word2Vec.fit();
 		log.info("Word2Vec model uptraining finished....\n Start writing into file....");
 
-		WordVectorSerializer.writeWord2Vec(word2Vec, output);
+		WordVectorSerializer.writeWord2VecModel(word2Vec, output);
 		
 		log.info("Write into file finished");
 
@@ -100,12 +100,10 @@ public class Word2VecUtils {
 	 */
 	public static WordVectors loadWordVector(File file) {
 		WordVectors wordVectors = null;
-		try {
-			log.info("loading common dl4j's wordvectors");
-			wordVectors = WordVectorSerializer.readWord2Vec(file);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		log.info("loading common dl4j's wordvectors");
+		wordVectors = WordVectorSerializer.readWord2VecModel(file);
+		log.info("common dl4j's wordvectors load complete");
+		
 		return wordVectors;
 	}
 	
@@ -114,13 +112,13 @@ public class Word2VecUtils {
 	 * @param file
 	 * @return
 	 */
+	@SuppressWarnings("deprecation")
 	public static WordVectors loadTxtWordVector(File file) {
 		WordVectors wordVectors = null;
 		try {
 			log.info("loading common dl4j's wordvectors");
 			wordVectors = WordVectorSerializer.loadTxtVectors(file);
 			log.info("common dl4j's wordvectors load complete");
-
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -133,6 +131,7 @@ public class Word2VecUtils {
 	 * @param binary
 	 * @return
 	 */
+	@SuppressWarnings("deprecation")
 	public static WordVectors loadGoogleWordVector(File file,boolean binary) {
 		WordVectors wordVectors = null;
 		try {
@@ -147,4 +146,5 @@ public class Word2VecUtils {
 	public static WordVectors loadGoogleWordVector(File file) {
 		return loadGoogleWordVector(file, true);
 	}
+
 }
